@@ -1,0 +1,31 @@
+name: Check BookMyShow
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the page
+        id: check
+        env:
+          MOVIE_URL: ${{ secrets.MOVIE_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: python3 check.py
+
+      - name: Stop checking once bookings are open
+        if: steps.check.outputs.found == 'true' && github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable check.yml --repo "$GITHUB_REPOSITORY"
